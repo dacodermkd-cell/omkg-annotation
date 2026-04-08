@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ── Constants ──────────────────────────────────────────
-DATASET_URL = "1H8A-jQZ64uPNgsXFurG6iY8f1MjIRrby/view?usp=sharing"
+DATASET_URL = "1H8A-jQZ64uPNgsXFurG6iY8f1MjIRrby"
 ANNOTATIONS_FILE = "annotations.csv"
 DATASET_FILE = "annotation_dataset.json"
 
