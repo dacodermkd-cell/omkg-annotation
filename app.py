@@ -5,14 +5,12 @@ import os
 import gdown
 from datetime import datetime
 
-# ── Page config ───────────────────────────────────────
 st.set_page_config(
     page_title="OMKG Annotation Tool",
     page_icon="🧬",
     layout="wide"
 )
 
-# ── Constants ──────────────────────────────────────────
 DATASET_URL = "1H8A-jQZ64uPNgsXFurG6iY8f1MjIRrby"
 ANNOTATIONS_FILE = "annotations.csv"
 DATASET_FILE = "annotation_dataset.json"
@@ -29,7 +27,6 @@ LABELS = {
     "⚠️ Partial": "partial"
 }
 
-# ── Load dataset ───────────────────────────────────────
 @st.cache_data
 def load_dataset():
     if not os.path.exists(DATASET_FILE):
@@ -42,7 +39,6 @@ def load_dataset():
     with open(DATASET_FILE, "r") as f:
         return json.load(f)
 
-# ── Load/save annotations ──────────────────────────────
 def load_annotations():
     if os.path.exists(ANNOTATIONS_FILE):
         return pd.read_csv(ANNOTATIONS_FILE)
@@ -52,8 +48,9 @@ def load_annotations():
         "label", "comment", "timestamp"
     ])
 
-def save_annotation(annotator, chunk_id, disease,
-                    triple, label, comment):
+def save_annotation(annotator, chunk_id,
+                    disease, triple,
+                    label, comment):
     df = load_annotations()
     new_row = {
         "annotator": annotator,
@@ -72,216 +69,191 @@ def save_annotation(annotator, chunk_id, disease,
     df.to_csv(ANNOTATIONS_FILE, index=False)
     return df
 
-def get_annotated_chunks(annotator, annotations_df):
-    if len(annotations_df) == 0:
+def get_annotated_chunks(annotator, df):
+    if len(df) == 0:
         return set()
-    annotator_df = annotations_df[
-        annotations_df["annotator"] == annotator]
-    return set(annotator_df["chunk_id"].unique())
+    return set(
+        df[df["annotator"] == annotator][
+            "chunk_id"].unique())
 
-# ── Styling ────────────────────────────────────────────
-st.markdown("""
-<style>
-.chunk-text {
-    background-color: #f8f9fa;
-    border-left: 4px solid #4CAF50;
-    padding: 15px;
-    border-radius: 5px;
-    font-size: 14px;
-    line-height: 1.6;
-    max-height: 300px;
-    overflow-y: auto;
-}
-.triple-card {
-    background-color: #ffffff;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px 0;
-}
-.metric-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: bold;
-}
-.high-conf { background-color: #d4edda; color: #155724; }
-.low-conf { background-color: #f8d7da; color: #721c24; }
-.hall-flag { background-color: #fff3cd; color: #856404; }
-</style>
-""", unsafe_allow_html=True)
-
-# ── Main app ───────────────────────────────────────────
 def main():
-    st.title("🧬 OMKG Biomedical Knowledge Graph")
-    st.subheader("Triple Annotation Interface")
-    st.markdown("---")
+    st.title("🧬 OMKG Annotation Tool")
+    st.caption(
+        "Biomedical Knowledge Graph — "
+        "Triple Annotation Interface")
+    st.divider()
 
-    # Sidebar
     with st.sidebar:
-        st.image(
-            "https://img.icons8.com/color/96/"
-            "000000/dna-helix.png",
-            width=80)
-        st.markdown("## Annotator")
+        st.markdown("## 👤 Annotator")
         annotator = st.selectbox(
-            "Select your name:",
-            ANNOTATORS)
-
-        st.markdown("---")
-        st.markdown("## Navigation")
-        page = st.radio(
-            "Go to:",
-            ["📋 Annotate", "📊 Progress",
-             "📥 Download Results"])
-
-        st.markdown("---")
-        st.markdown("## Instructions")
+            "Select your name:", ANNOTATORS)
+        st.divider()
+        st.markdown("## 🗂️ Navigation")
+        page = st.radio("", [
+            "📋 Annotate",
+            "📊 Progress",
+            "📥 Download"])
+        st.divider()
         st.markdown("""
-**For each triple:**
-- Read the chunk text carefully
-- Decide if the triple is supported
-- ✅ **Correct** — fully supported by text
-- ⚠️ **Partial** — partially supported
-- ❌ **Incorrect** — not supported or wrong
-- Add a comment if unsure
+## 📖 Instructions
+
+For each triple shown:
+
+**Read** the chunk text on the left.
+
+Then judge each triple:
+
+✅ **Correct** — The triple states a
+fact that is supported by the text
+or is medically accurate.
+
+⚠️ **Partial** — The triple is
+partially correct or imprecise.
+
+❌ **Incorrect** — The triple is
+wrong, hallucinated, or not supported.
+
+Click **Submit** when done with
+all 15 triples.
         """)
 
-    # Load data
     try:
         dataset = load_dataset()
     except Exception as e:
         st.error(f"Could not load dataset: {e}")
-        st.info(
-            "Make sure the Google Drive file "
-            "ID is set correctly in the app.")
         return
 
     annotations_df = load_annotations()
-    annotated_chunks = get_annotated_chunks(
+    annotated = get_annotated_chunks(
         annotator, annotations_df)
 
-    # ── Page: Annotate ─────────────────────────────────
+    # ── ANNOTATE PAGE ──────────────────────────
     if page == "📋 Annotate":
-        st.markdown(f"### Annotating as: "
-                    f"**{annotator}**")
+        st.markdown(
+            f"### Annotating as: **{annotator}**")
 
-        # Disease filter
         diseases = sorted(set(
             c["disease"] for c in dataset))
-        selected_disease = st.selectbox(
-            "Filter by disease:",
-            ["All diseases"] + diseases)
+        col_f1, col_f2 = st.columns([2, 1])
+        with col_f1:
+            sel_disease = st.selectbox(
+                "Filter by disease:",
+                ["All diseases"] + diseases)
+        with col_f2:
+            show_done = st.checkbox(
+                "Show completed chunks", False)
 
-        # Filter chunks
-        if selected_disease == "All diseases":
+        if sel_disease == "All diseases":
             filtered = dataset
         else:
             filtered = [
                 c for c in dataset
-                if c["disease"] == selected_disease]
+                if c["disease"] == sel_disease]
 
-        # Find next unannotated chunk
-        unannotated = [
-            c for c in filtered
-            if c["chunk_id"] not in annotated_chunks]
+        if show_done:
+            pool = filtered
+        else:
+            pool = [c for c in filtered
+                    if c["chunk_id"]
+                    not in annotated]
 
-        st.markdown(
-            f"**Progress:** "
-            f"{len(annotated_chunks)}/300 chunks done "
-            f"| {len(unannotated)} remaining")
+        done_count = len(annotated)
+        st.progress(done_count / 300,
+                    text=f"{done_count}/300 chunks "
+                         f"annotated")
 
-        if len(unannotated) == 0:
+        if len(pool) == 0:
             st.success(
-                "🎉 All chunks annotated! "
-                "Check the Progress tab.")
+                "🎉 All chunks annotated!")
             return
 
-        # Show chunk navigator
         chunk_idx = st.number_input(
-            f"Chunk (1 to {len(unannotated)})",
+            f"Chunk number (1–{len(pool)})",
             min_value=1,
-            max_value=len(unannotated),
+            max_value=len(pool),
             value=1) - 1
 
-        chunk = unannotated[chunk_idx]
+        chunk = pool[chunk_idx]
+        triples = chunk["triples"]
 
-        st.markdown("---")
-        col1, col2 = st.columns([1, 1])
+        st.divider()
+        left, right = st.columns([1, 1])
 
-        with col1:
+        with left:
             st.markdown(
-                f"#### 📄 Chunk: `{chunk['chunk_id']}`")
+                f"**Chunk:** `{chunk['chunk_id']}`")
             st.markdown(
                 f"**Disease:** {chunk['disease']}")
             st.markdown(
-                f"**Triples to annotate:** "
-                f"{len(chunk['triples'])}")
-            st.markdown(
-                "<div class='chunk-text'>"
-                f"{chunk['text']}"
-                "</div>",
-                unsafe_allow_html=True)
+                f"**Triples:** {len(triples)}")
+            st.markdown("**Text:**")
+            # Use st.text_area for reliable display
+            st.text_area(
+                label="chunk_text_display",
+                value=chunk["text"],
+                height=500,
+                disabled=True,
+                label_visibility="collapsed")
 
-        with col2:
+        with right:
             st.markdown(
-                f"#### 🔗 Triples "
-                f"({len(chunk['triples'])} total)")
+                f"**Triples ({len(triples)} total)**")
 
             with st.form(
-                    key=f"form_{chunk['chunk_id']}"):
+                    key=f"f_{chunk['chunk_id']}"):
                 labels = {}
                 comments = {}
 
-                for i, triple in enumerate(
-                        chunk["triples"]):
-                    conf = triple.get(
-                        "avg_confidence", 0)
-                    cons = triple.get(
-                        "consensus_score", 1)
-                    hall = triple.get(
-                        "hallucination_flag", False)
-                    epi = triple.get(
-                        "epistemic_uncertainty", 0.8)
+                for i, t in enumerate(triples):
+                    conf = float(
+                        t.get("avg_confidence",
+                              0.5))
+                    cons = int(
+                        t.get("consensus_score",
+                              1))
+                    hall = bool(
+                        t.get("hallucination_flag",
+                              False))
 
-                    conf_class = "high-conf" \
-                        if conf >= 0.8 else "low-conf"
-                    hall_str = (
-                        "<span class='metric-badge "
-                        "hall-flag'>⚠️ Hallucination "
-                        "Risk</span>"
-                        if hall else "")
+                    with st.container(border=True):
+                        st.markdown(
+                            f"**Triple {i+1}**")
+                        st.markdown(
+                            f"**Subject:** "
+                            f"`{t['subject']}`")
+                        st.markdown(
+                            f"**Predicate:** "
+                            f"`{t['predicate']}`")
+                        st.markdown(
+                            f"**Object:** "
+                            f"`{t['object']}`")
 
-                    st.markdown(
-                        f"<div class='triple-card'>"
-                        f"<b>{i+1}.</b> "
-                        f"<code>{triple['subject']}</code>"
-                        f" → <b>{triple['predicate']}"
-                        f"</b> → "
-                        f"<code>{triple['object']}"
-                        f"</code><br>"
-                        f"<span class='metric-badge "
-                        f"{conf_class}'>"
-                        f"conf={conf:.2f}</span> "
-                        f"<span class='metric-badge "
-                        f"high-conf'>"
-                        f"consensus={cons}/5</span> "
-                        f"{hall_str}"
-                        f"</div>",
-                        unsafe_allow_html=True)
+                        badge_cols = st.columns(3)
+                        badge_cols[0].metric(
+                            "Confidence",
+                            f"{conf:.2f}")
+                        badge_cols[1].metric(
+                            "Consensus",
+                            f"{cons}/5")
+                        if hall:
+                            badge_cols[2].warning(
+                                "⚠️ Hallucination "
+                                "Risk")
 
-                    labels[i] = st.radio(
-                        f"Label triple {i+1}:",
-                        list(LABELS.keys()),
-                        key=f"label_{chunk['chunk_id']}"
-                            f"_{i}",
-                        horizontal=True)
-                    comments[i] = st.text_input(
-                        f"Comment (optional):",
-                        key=f"comment_"
-                            f"{chunk['chunk_id']}"
-                            f"_{i}")
+                        labels[i] = st.radio(
+                            "Label:",
+                            list(LABELS.keys()),
+                            key=f"l_{chunk['chunk_id']}"
+                                f"_{i}",
+                            horizontal=True)
+                        comments[i] = st.text_input(
+                            "Comment:",
+                            key=f"c_{chunk['chunk_id']}"
+                                f"_{i}",
+                            label_visibility=
+                            "collapsed",
+                            placeholder=
+                            "Optional comment...")
 
                 submitted = st.form_submit_button(
                     "✅ Submit All Annotations",
@@ -289,139 +261,104 @@ def main():
                     type="primary")
 
                 if submitted:
-                    for i, triple in enumerate(
-                            chunk["triples"]):
+                    for i, t in enumerate(triples):
                         save_annotation(
                             annotator,
                             chunk["chunk_id"],
                             chunk["disease"],
-                            triple,
+                            t,
                             LABELS[labels[i]],
                             comments[i])
                     st.success(
-                        f"✅ Saved {len(chunk['triples'])}"
-                        f" annotations for "
-                        f"`{chunk['chunk_id']}`!")
+                        f"Saved {len(triples)} "
+                        f"annotations!")
                     st.rerun()
 
-    # ── Page: Progress ─────────────────────────────────
+    # ── PROGRESS PAGE ──────────────────────────
     elif page == "📊 Progress":
-        st.markdown("### 📊 Annotation Progress")
+        st.markdown("### 📊 Progress")
 
         if len(annotations_df) == 0:
             st.info("No annotations yet.")
             return
 
-        col1, col2, col3, col4 = st.columns(4)
-
-        total_annotated = len(
+        c1, c2, c3, c4 = st.columns(4)
+        total_chunks = len(
             annotations_df["chunk_id"].unique())
-        total_triples = len(annotations_df)
+        total_t = len(annotations_df)
         correct = (
-            annotations_df["label"] == "correct"
-            ).sum()
+            annotations_df["label"]
+            == "correct").sum()
         incorrect = (
-            annotations_df["label"] == "incorrect"
-            ).sum()
-        partial = (
-            annotations_df["label"] == "partial"
-            ).sum()
+            annotations_df["label"]
+            == "incorrect").sum()
 
-        col1.metric("Chunks Done",
-                    f"{total_annotated}/300")
-        col2.metric("Triples Annotated",
-                    f"{total_triples:,}")
-        col3.metric("Correct",
-                    f"{correct:,}",
-                    f"{correct/total_triples*100:.1f}%"
-                    if total_triples > 0 else "0%")
-        col4.metric("Incorrect",
-                    f"{incorrect:,}",
-                    f"{incorrect/total_triples*100:.1f}%"
-                    if total_triples > 0 else "0%")
+        c1.metric("Chunks Done",
+                  f"{total_chunks}/300")
+        c2.metric("Triples Done", f"{total_t:,}")
+        c3.metric("✅ Correct",
+                  f"{correct/total_t*100:.1f}%")
+        c4.metric("❌ Incorrect",
+                  f"{incorrect/total_t*100:.1f}%")
 
-        st.markdown("---")
-
-        # Per annotator progress
+        st.divider()
         st.markdown("#### Per Annotator")
         for ann in ANNOTATORS:
-            ann_df = annotations_df[
+            adf = annotations_df[
                 annotations_df["annotator"] == ann]
-            chunks_done = len(
-                ann_df["chunk_id"].unique())
-            triples_done = len(ann_df)
+            n = len(adf["chunk_id"].unique())
             st.markdown(
-                f"**{ann}:** {chunks_done}/300 chunks "
-                f"| {triples_done:,} triples")
-            st.progress(chunks_done / 300)
+                f"**{ann}:** {n}/300 chunks | "
+                f"{len(adf):,} triples")
+            st.progress(n / 300)
 
-        st.markdown("---")
-
-        # Per disease progress
+        st.divider()
         st.markdown("#### Per Disease")
-        disease_progress = annotations_df.groupby(
-            "disease")["chunk_id"].nunique()
-        for disease in sorted(
-                annotations_df["disease"].unique()):
-            done = disease_progress.get(disease, 0)
-            st.markdown(
-                f"**{disease}:** {done}/30 chunks")
-            st.progress(done / 30)
+        dp = annotations_df.groupby("disease")[
+            "chunk_id"].nunique()
+        for d in sorted(dp.index):
+            n = dp[d]
+            st.markdown(f"**{d}:** {n}/30")
+            st.progress(n / 30)
 
-        st.markdown("---")
-
-        # Label distribution
+        st.divider()
         st.markdown("#### Label Distribution")
-        label_counts = annotations_df[
-            "label"].value_counts()
-        st.bar_chart(label_counts)
+        lc = annotations_df["label"].value_counts()
+        st.bar_chart(lc)
 
-        # Disease breakdown
-        st.markdown("#### Annotations by Disease")
-        disease_labels = annotations_df.groupby(
-            ["disease", "label"]).size().unstack(
-            fill_value=0)
-        st.dataframe(disease_labels)
-
-    # ── Page: Download ──────────────────────────────────
-    elif page == "📥 Download Results":
-        st.markdown("### 📥 Download Annotations")
+    # ── DOWNLOAD PAGE ───────────────────────────
+    elif page == "📥 Download":
+        st.markdown("### 📥 Download Results")
 
         if len(annotations_df) == 0:
-            st.info("No annotations to download yet.")
+            st.info("No annotations yet.")
             return
 
         st.markdown(
-            f"**Total annotations:** "
-            f"{len(annotations_df):,}")
+            f"**{len(annotations_df):,} total "
+            f"annotations**")
 
-        # Full CSV download
-        csv = annotations_df.to_csv(index=False)
         st.download_button(
-            label="⬇️ Download All Annotations (CSV)",
-            data=csv,
-            file_name="omkg_annotations.csv",
-            mime="text/csv",
+            "⬇️ Download All (CSV)",
+            annotations_df.to_csv(index=False),
+            "omkg_annotations.csv",
+            "text/csv",
             use_container_width=True)
 
-        # Per annotator download
-        st.markdown("#### Per Annotator")
+        st.divider()
         for ann in ANNOTATORS:
-            ann_df = annotations_df[
+            adf = annotations_df[
                 annotations_df["annotator"] == ann]
-            if len(ann_df) > 0:
-                csv_ann = ann_df.to_csv(index=False)
+            if len(adf) > 0:
                 st.download_button(
-                    label=f"⬇️ {ann} annotations "
-                          f"({len(ann_df):,} rows)",
-                    data=csv_ann,
-                    file_name=f"annotations_"
-                              f"{ann.replace(' ','_')}"
-                              f".csv",
-                    mime="text/csv")
+                    f"⬇️ {ann} ({len(adf):,} rows)",
+                    adf.to_csv(index=False),
+                    f"annotations_"
+                    f"{ann.replace(' ','_')}.csv",
+                    "text/csv")
 
-        st.markdown("---")
-        st.markdown("#### Preview")
+        st.divider()
+        st.markdown("#### Preview (last 20)")
         st.dataframe(annotations_df.tail(20))
 
 if __name__ == "__main__":
