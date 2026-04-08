@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ── Constants ──────────────────────────────────────────
-DATASET_URL = "PASTE_GDRIVE_FILE_ID_HERE"
+DATASET_URL = "https://drive.google.com/file/d/1H8A-jQZ64uPNgsXFurG6iY8f1MjIRrby/view?usp=sharing"
 ANNOTATIONS_FILE = "annotations.csv"
 DATASET_FILE = "annotation_dataset.json"
 
