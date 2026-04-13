@@ -21,7 +21,7 @@ SHEET_ID = st.secrets["SHEET_ID"]
 
 ANNOTATORS = [
     "Mitul Kumar",
-    "Guide 1",
+    "Md Inzmam",
     "Guide 2"
 ]
 
