@@ -58,14 +58,18 @@ def get_sheet():
 
 # ── Load dataset ───────────────────────────────────────
 @st.cache_data
+@st.cache_data
 def load_dataset():
-    if not os.path.exists(DATASET_FILE):
-        with st.spinner(
-                "Downloading annotation dataset..."):
-            gdown.download(
-                f"https://drive.google.com/uc?"
-                f"id={DATASET_URL}",
-                DATASET_FILE, quiet=False)
+    # Remove cached file to force
+    # fresh download of updated dataset
+    if os.path.exists(DATASET_FILE):
+        os.remove(DATASET_FILE)
+    with st.spinner(
+            "Downloading annotation dataset..."):
+        gdown.download(
+            f"https://drive.google.com/uc?"
+            f"id={DATASET_URL}",
+            DATASET_FILE, quiet=False)
     with open(DATASET_FILE, "r") as f:
         return json.load(f)
 
