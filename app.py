@@ -290,7 +290,7 @@ are labelled.
                     use_container_width=True,
                     type="primary")
 
-                if submitted:
+                
     if submitted:
     with st.spinner("Saving..."):
         save_annotation_batch(
