@@ -102,8 +102,15 @@ def save_annotation_batch(annotator, chunk_id, disease, triples, labels, comment
             datetime.now().isoformat()
         ]
         rows.append(row)
-    sheet.append_rows(rows)  # ONE API call instead of 15
-    load_annotations.clear()
+    try:
+        sheet.append_rows(rows)
+        load_annotations.clear()
+    except Exception as e:
+        st.error(f"Save failed: {type(e).__name__}: {str(e)}")
+        st.error(f"Response status: {getattr(e, 'response', {})}")
+        if hasattr(e, 'response'):
+            st.error(f"Response text: {e.response.text}")
+        raise
 
 def get_annotated_chunks(annotator, df):
     if len(df) == 0:
