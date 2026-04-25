@@ -293,7 +293,7 @@ are labelled.
                 
     if submitted:
         with st.spinner("Saving..."):
-        save_annotation_batch(
+            save_annotation_batch(
             annotator,
             chunk["chunk_id"],
             chunk["disease"],
@@ -301,8 +301,8 @@ are labelled.
             [LABELS[labels[i]] for i in range(len(triples))],
             [comments[i] for i in range(len(triples))]
         )
-    st.success(f"✅ Saved {len(triples)} annotations!")
-    st.rerun()
+        st.success(f"✅ Saved {len(triples)} annotations!")
+        st.rerun()
 
     # ── PROGRESS ───────────────────────────────
     elif page == "📊 Progress":
