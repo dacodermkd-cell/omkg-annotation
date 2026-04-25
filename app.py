@@ -292,7 +292,7 @@ are labelled.
 
                 
     if submitted:
-    with st.spinner("Saving..."):
+        with st.spinner("Saving..."):
         save_annotation_batch(
             annotator,
             chunk["chunk_id"],
