@@ -86,22 +86,23 @@ def load_annotations():
         return pd.DataFrame(columns=HEADER)
 
 # ── Save annotation to sheet ───────────────────────────
-def save_annotation(annotator, chunk_id,
-                    disease, triple,
-                    label, comment):
+def save_annotation_batch(annotator, chunk_id, disease, triples, labels, comments):
     sheet = get_sheet()
-    row = [
-        annotator,
-        chunk_id,
-        disease,
-        str(triple["subject"]),
-        str(triple["predicate"]),
-        str(triple["object"]),
-        label,
-        comment,
-        datetime.now().isoformat()
-    ]
-    sheet.append_row(row)
+    rows = []
+    for i, triple in enumerate(triples):
+        row = [
+            annotator,
+            chunk_id,
+            disease,
+            str(triple["subject"]),
+            str(triple["predicate"]),
+            str(triple["object"]),
+            labels[i],
+            comments[i],
+            datetime.now().isoformat()
+        ]
+        rows.append(row)
+    sheet.append_rows(rows)  # ONE API call instead of 15
     load_annotations.clear()
 
 def get_annotated_chunks(annotator, df):
@@ -290,21 +291,18 @@ are labelled.
                     type="primary")
 
                 if submitted:
-                    with st.spinner("Saving..."):
-                        for i, t in enumerate(
-                                triples):
-                            save_annotation(
-                                annotator,
-                                chunk["chunk_id"],
-                                chunk["disease"],
-                                t,
-                                LABELS[labels[i]],
-                                comments[i])
-                    st.success(
-                        f"✅ Saved "
-                        f"{len(triples)} "
-                        f"annotations!")
-                    st.rerun()
+    if submitted:
+    with st.spinner("Saving..."):
+        save_annotation_batch(
+            annotator,
+            chunk["chunk_id"],
+            chunk["disease"],
+            triples,
+            [LABELS[labels[i]] for i in range(len(triples))],
+            [comments[i] for i in range(len(triples))]
+        )
+    st.success(f"✅ Saved {len(triples)} annotations!")
+    st.rerun()
 
     # ── PROGRESS ───────────────────────────────
     elif page == "📊 Progress":
