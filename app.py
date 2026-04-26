@@ -169,6 +169,22 @@ are labelled.
     annotations_df = load_annotations()
     annotated = get_annotated_chunks(
         annotator, annotations_df)
+    submitted = False  # Initialize before page routing
+
+if page == "📋 Annotate":
+    # ... existing annotate code ...
+    with st.form(key=f"f_{chunk['chunk_id']}"):
+        # ... existing form code ...
+        submitted = st.form_submit_button(...)
+    
+    if submitted:  # Now safe to check
+        # ... save code ...
+
+elif page == "📊 Progress":
+    # ... existing progress code ...
+
+elif page == "📥 Download":
+    # ... existing download code ...
 
     # ── ANNOTATE ───────────────────────────────
     if page == "📋 Annotate":
