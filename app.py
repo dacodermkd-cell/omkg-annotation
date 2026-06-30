@@ -22,7 +22,7 @@ SHEET_ID = st.secrets["SHEET_ID"]
 ANNOTATORS = [
     "Mitul Kumar",
     "Md Inzmam",
-    "Guide 2"
+    "Sadhana Mam"
 ]
 
 LABELS = {
